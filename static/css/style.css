@@ -1,0 +1,136 @@
+:root {
+    --sidebar-width: 250px;
+    --main-bg-color: #252525;      /* from --color-bg-dark */
+    --sidebar-bg-color: #252525;   /* from --color-bg-dark */
+    --card-bg-color: #333333;       /* from --color-bg-light */
+    --text-color: #ffffff;         /* from --color-text */
+    --text-dim-color: #b0b0b0;    /* from --color-text-dim */
+    --accent-color: #c85050;       /* from --color-accent */
+    --primary-color: #870005;      /* from --color-primary */
+}
+
+body {
+    background-color: var(--main-bg-color);
+    color: var(--text-color);
+}
+
+.sidebar {
+    width: var(--sidebar-width);
+    position: fixed;
+    top: 0;
+    bottom: 0;
+    left: 0;
+    padding: 20px 0;
+    background-color: var(--sidebar-bg-color);
+    border-right: 1px solid #444;
+    z-index: 100;
+}
+
+.sidebar .nav-link {
+    color: var(--text-color);
+    font-size: 1.1em;
+    padding: 10px 20px;
+    display: flex;
+    align-items: center;
+}
+
+.sidebar .nav-link i {
+    margin-right: 15px;
+}
+
+.sidebar .nav-link.active, .sidebar .nav-link:hover {
+    background-color: var(--primary-color);
+    border-radius: 5px;
+}
+
+.main-content {
+    margin-left: var(--sidebar-width);
+    padding: 2rem;
+}
+
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    grid-auto-rows: auto;
+    gap: 2rem;
+}
+
+.chart-row {
+    grid-column: 1 / 3;
+    display: flex;
+    gap: 2rem;
+}
+
+.chart-container {
+    background-color: var(--card-bg-color);
+    padding: 1.5rem;
+    border-radius: 10px;
+    position: relative;
+    height: 40vh;
+}
+
+#prompts-chart-container {
+    flex: 3;
+}
+
+.status-container {
+    background-color: var(--card-bg-color);
+    padding: 1.5rem;
+    border-radius: 10px;
+    flex: 1;
+}
+
+#new-users-chart-container {
+    grid-column: 1 / 2;
+}
+
+#active-users-chart-container {
+    grid-column: 2 / 3;
+}
+
+
+.status-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 1rem 0;
+    border-bottom: 1px solid #444;
+}
+.status-item:last-child {
+    border-bottom: none;
+}
+.status-indicator {
+    width: 15px;
+    height: 15px;
+    border-radius: 50%;
+    background-color: #28a745; /* Green for 'Operational' */
+}
+ .status-indicator.degraded {
+    background-color: #ffc107; /* Orange for 'Degraded' */
+}
+.status-indicator.down {
+    background-color: #dc3545; /* Red for 'Down' */
+}
+
+.card-deck {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+.stat-card {
+    flex: 1;
+    background-color: var(--card-bg-color);
+    padding: 1.5rem;
+    border-radius: 10px;
+    text-align: center;
+}
+.stat-card h5 {
+    font-size: 1rem;
+    color: var(--text-dim-color);
+}
+.stat-card p {
+    font-size: 2.5rem;
+    font-weight: bold;
+    color: var(--accent-color);
+}
