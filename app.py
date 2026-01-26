@@ -3,11 +3,37 @@ from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import func, distinct, UniqueConstraint
 from datetime import datetime, timedelta
 import random
+import json
 
 app = Flask(__name__)
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///:memory:'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 db = SQLAlchemy(app)
+
+# --- Globals for dummy data ---
+DUMMY_COURSES = []
+
+def load_dummy_courses():
+    """Loads course data from the JSON file."""
+    global DUMMY_COURSES
+    try:
+        with open('course_example.json', 'r') as f:
+            # Wrap the single course object in a list to simulate multiple courses
+            DUMMY_COURSES = [json.load(f)]
+    except (FileNotFoundError, json.JSONDecodeError) as e:
+        print(f"Error loading dummy course data: {e}")
+        DUMMY_COURSES = []
+
+def save_dummy_courses():
+    """Saves the first dummy course back to the JSON file."""
+    global DUMMY_COURSES
+    if DUMMY_COURSES:
+        try:
+            with open('course_example.json', 'w') as f:
+                # Save only the first course, assuming a 1-to-1 mapping with the file
+                json.dump(DUMMY_COURSES[0], f, indent=2)
+        except IOError as e:
+            print(f"Error saving dummy course data: {e}")
 
 # --- Database Models ---
 class Organization(db.Model):
@@ -45,6 +71,53 @@ class DailyActiveUser(db.Model):
     date = db.Column(db.Date, nullable=False)
     __table_args__ = (UniqueConstraint('user_id', 'date', name='_user_date_uc'),)
 
+def populate_data():
+    """Populates the database with dummy data."""
+    # --- Create Organizations and Courses ---
+    org_names = ['Org A', 'Org B', 'Org C', 'Org D', 'Org E']
+    course_names = ['Intro to AI', 'Advanced Machine Learning', 'Data Science 101', 'Python for Beginners', 'Natural Language Processing']
+    
+    for name in org_names:
+        if not Organization.query.filter_by(name=name).first():
+            db.session.add(Organization(name=name))
+            
+    for name in course_names:
+        if not Course.query.filter_by(name=name).first():
+            db.session.add(Course(name=name))
+    db.session.commit()
+
+    # --- Create Users ---
+    orgs = Organization.query.all()
+    users_to_create = []
+    for i in range(100):
+        created_date = datetime.utcnow() - timedelta(days=random.randint(0, 29))
+        last_seen_delta = timedelta(days=random.randint(0, (datetime.utcnow() - created_date).days))
+        last_seen_date = created_date + last_seen_delta
+        users_to_create.append(User(username=f'user{i}', created_at=created_date, last_seen=last_seen_date, organization_id=random.choice(orgs).id))
+
+    db.session.bulk_save_objects(users_to_create, return_defaults=True)
+    db.session.commit()
+
+    # --- Create Prompts and Daily Active Users ---
+    prompts_to_create = []
+    daily_active_users_to_add = set()
+    users = User.query.all()
+    for user in users:
+        for _ in range(random.randint(5, 50)):
+            if (datetime.utcnow() - user.created_at).days > 0:
+                prompt_date_delta = timedelta(days=random.randint(0, (datetime.utcnow() - user.created_at).days))
+                prompt_date = user.created_at + prompt_date_delta
+                prompts_to_create.append(Prompt(user_id=user.id, prompt_text=f'This is a sample prompt by {user.username}', created_at=prompt_date))
+                # Add to set for daily active users
+                daily_active_users_to_add.add((user.id, prompt_date.date()))
+
+    db.session.bulk_save_objects(prompts_to_create)
+    
+    # Create DailyActiveUser records
+    for user_id, date in daily_active_users_to_add:
+        db.session.add(DailyActiveUser(user_id=user_id, date=date))
+        
+    db.session.commit()
 
 # --- Routes ---
 @app.route('/')
@@ -61,12 +134,12 @@ def overview():
     
     # Prompts per day
     prompts_per_day_query = db.session.query(func.date(Prompt.created_at), func.count(Prompt.id)).filter(Prompt.created_at >= datetime.utcnow() - timedelta(days=30)).group_by(func.date(Prompt.created_at)).all()
-    prompts_per_day = {date.strftime('%Y-%m-%d'): count for date, count in prompts_per_day_query}
+    prompts_per_day = dict(prompts_per_day_query)
     prompt_counts = [prompts_per_day.get(day.strftime('%Y-%m-%d'), 0) for day in days_range]
 
     # New users per day
     new_users_per_day_query = db.session.query(func.date(User.created_at), func.count(User.id)).filter(User.created_at >= datetime.utcnow() - timedelta(days=30)).group_by(func.date(User.created_at)).all()
-    new_users_per_day = {date.strftime('%Y-%m-%d'): count for date, count in new_users_per_day_query}
+    new_users_per_day = dict(new_users_per_day_query)
     new_user_counts = [new_users_per_day.get(day.strftime('%Y-%m-%d'), 0) for day in days_range]
     
     # Active users per day (users who made a prompt)
@@ -92,6 +165,54 @@ def overview():
 @app.route('/models')
 def models():
     return render_template('models.html')
+
+# --- Course Routes ---
+@app.route('/courses')
+def courses():
+    return render_template('courses.html', courses=DUMMY_COURSES)
+
+@app.route('/edit_course/<int:course_id>', methods=['GET', 'POST'])
+def edit_course(course_id):
+    course = None
+    # Adjust index for 1-based ID from URL to 0-based list index
+    course_index = course_id - 1
+
+    if course_id > 0 and course_id <= len(DUMMY_COURSES):
+        course = DUMMY_COURSES[course_index]
+
+    if request.method == 'POST':
+        # Reconstruct the course object from form data
+        new_course_data = {
+            "course_title": request.form.get('course_title'),
+            "description": request.form.get('description'),
+            "difficulty": request.form.get('difficulty'),
+            "steps": []
+        }
+
+        # Process steps
+        step_index = 0
+        while f'step_title_{step_index}' in request.form:
+            content_outline = request.form.get(f'step_content_{step_index}', '').split(',')
+            new_step = {
+                "step_number": step_index + 1,
+                "title": request.form.get(f'step_title_{step_index}'),
+                "objective": request.form.get(f'step_objective_{step_index}'),
+                "content_outline": [item.strip() for item in content_outline]
+            }
+            new_course_data["steps"].append(new_step)
+            step_index += 1
+        
+        # If it's a new course, append it. Otherwise, update existing.
+        if course_id == 0:
+            DUMMY_COURSES.append(new_course_data)
+        else:
+            DUMMY_COURSES[course_index] = new_course_data
+
+        save_dummy_courses()
+        return redirect(url_for('courses'))
+        
+    return render_template('edit_course.html', course=course, course_id=course_id)
+
 
 # --- Organization Routes ---
 @app.route('/organizations')
@@ -179,5 +300,7 @@ if __name__ == '__main__':
         print("Dropping all tables and recreating them...")
         db.drop_all()
         db.create_all()
+        populate_data()
         print("Database is ready.")
+        load_dummy_courses()
     app.run(debug=True)

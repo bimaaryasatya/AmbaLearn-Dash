@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+
+{% block title %}{% if course %}Edit Course{% else %}Add New Course{% endif %}{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <h1 class="h2">{% if course %}Edit Course{% else %}Add New Course{% endif %}</h1>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            <div class="mb-3">
+                <label for="course_title" class="form-label">Course Title</label>
+                <input type="text" class="form-control" id="course_title" name="course_title" value="{{ course.course_title if course else '' }}" required>
+            </div>
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea class="form-control" id="description" name="description" rows="3">{{ course.description if course else '' }}</textarea>
+            </div>
+            <div class="mb-3">
+                <label for="difficulty" class="form-label">Difficulty</label>
+                <select class="form-select" id="difficulty" name="difficulty">
+                    <option {% if course and course.difficulty == 'Beginner' %}selected{% endif %}>Beginner</option>
+                    <option {% if course and course.difficulty == 'Intermediate' %}selected{% endif %}>Intermediate</option>
+                    <option {% if course and course.difficulty == 'Advanced' %}selected{% endif %}>Advanced</option>
+                </select>
+            </div>
+
+            <hr>
+
+            <h5 class="mt-4">Steps</h5>
+            <div id="steps-container">
+                {% if course %}
+                    {% for step in course.steps %}
+                    <div class="step-group border rounded p-3 mb-3">
+                        <div class="d-flex justify-content-between">
+                            <h6>Step {{ loop.index }}</h6>
+                            <button type="button" class="btn-close" aria-label="Close" onclick="this.closest('.step-group').remove()"></button>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Step Title</label>
+                            <input type="text" class="form-control" name="step_title_{{ loop.index0 }}" value="{{ step.title }}">
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Objective</label>
+                            <textarea class="form-control" name="step_objective_{{ loop.index0 }}" rows="2">{{ step.objective }}</textarea>
+                        </div>
+                        <div class="mb-3">
+                            <label class="form-label">Content Outline (comma-separated)</label>
+                            <input type="text" class="form-control" name="step_content_{{ loop.index0 }}" value="{{ step.content_outline | join(', ') }}">
+                        </div>
+                    </div>
+                    {% endfor %}
+                {% endif %}
+            </div>
+            <button type="button" id="add-step-btn" class="btn btn-outline-secondary mt-2">Add Step</button>
+
+            <hr>
+
+            <div class="mt-4">
+                <button type="submit" class="btn btn-primary">Save Course</button>
+                <a href="{{ url_for('courses') }}" class="btn btn-secondary">Cancel</a>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const addStepBtn = document.getElementById('add-step-btn');
+    const stepsContainer = document.getElementById('steps-container');
+    let stepIndex = {{ course.steps | length if course else 0 }};
+
+    addStepBtn.addEventListener('click', function() {
+        stepIndex++;
+        const newStep = document.createElement('div');
+        newStep.classList.add('step-group', 'border', 'rounded', 'p-3', 'mb-3');
+        newStep.innerHTML = `
+            <div class="d-flex justify-content-between">
+                <h6>Step ${stepIndex}</h6>
+                <button type="button" class="btn-close" aria-label="Close" onclick="this.closest('.step-group').remove()"></button>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Step Title</label>
+                <input type="text" class="form-control" name="step_title_${stepIndex -1}" value="">
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Objective</label>
+                <textarea class="form-control" name="step_objective_${stepIndex - 1}" rows="2"></textarea>
+            </div>
+            <div class="mb-3">
+                <label class="form-label">Content Outline (comma-separated)</label>
+                <input type="text" class="form-control" name="step_content_${stepIndex - 1}" value="">
+            </div>
+        `;
+        stepsContainer.appendChild(newStep);
+    });
+});
+</script>
+{% endblock %}

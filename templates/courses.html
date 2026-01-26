@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+
+{% block title %}AmbaLearn Dashboard - Courses{% endblock %}
+
+{% block content %}
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h2">Courses</h1>
+        <a href="{{ url_for('edit_course', course_id=0) }}" class="btn btn-primary">Add New Course</a>
+    </div>
+
+    <div class="card">
+        <div class="card-body">
+            <h5 class="card-title">All Courses</h5>
+            <table class="table table-hover">
+                <thead>
+                    <tr>
+                        <th scope="col">Title</th>
+                        <th scope="col">Description</th>
+                        <th scope="col">Difficulty</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for course in courses %}
+                    <tr>
+                        <td>{{ course.course_title }}</td>
+                        <td>{{ course.description }}</td>
+                        <td><span class="badge bg-secondary">{{ course.difficulty }}</span></td>
+                        <td>
+                            <a href="{{ url_for('edit_course', course_id=loop.index) }}" class="btn btn-sm btn-outline-warning">Edit</a>
+                            <a href="#" class="btn btn-sm btn-outline-danger">Delete</a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+{% endblock %}
