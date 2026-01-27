@@ -1,3 +1,7 @@
 Flask
 Flask-SQLAlchemy
 SQLAlchemy
+pymysql
+flask-login
+flask-bcrypt
+python-dotenv
