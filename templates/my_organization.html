@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block title %}AmbaLearn Dashboard - My Organization{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Your Organization</h1>
+    <p>Manage your main organization settings</p>
+</div>
+
+{% if not org %}
+<!-- Case for Admin without Org, though they should be redirected, just in case -->
+<div class="card mb-4">
+    <div class="card-body text-center" style="padding: 40px;">
+        <i class="bi bi-building-x" style="font-size: 48px; color: var(--color-text-secondary); opacity: 0.5;"></i>
+        <h5 style="margin-top: 16px;">No Organization Assigned</h5>
+        <p style="color: var(--color-text-secondary);">You are currently not part of any organization.</p>
+    </div>
+</div>
+{% else %}
+
+<div class="row">
+    <!-- Overview Card -->
+    <div class="col-md-8 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 24px;">
+                    <div>
+                        <h5 class="card-title" style="font-size: 1.5rem; margin-bottom: 8px;">{{ org.name }}</h5>
+                        <p class="text-secondary" style="margin-bottom: 0;">{{ org.description or 'No description
+                            provided.' }}</p>
+                    </div>
+                    <div
+                        style="width: 60px; height: 60px; background: linear-gradient(135deg, rgba(59, 130, 246, 0.15) 0%, rgba(45, 212, 191, 0.15) 100%); border-radius: 12px; display: flex; align-items: center; justify-content: center;">
+                        <i class="bi bi-building" style="color: var(--color-primary-light); font-size: 28px;"></i>
+                    </div>
+                </div>
+
+                <div class="row g-3">
+                    <div class="col-md-6">
+                        <div
+                            style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 16px; border: 1px solid var(--color-border);">
+                            <label
+                                style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; margin-bottom: 4px; display: block;">Invitation
+                                Code</label>
+                            <div style="display: flex; align-items: center; gap: 8px;">
+                                <span
+                                    style="font-family: monospace; font-size: 1.2rem; font-weight: 600; letter-spacing: 2px;">{{
+                                    org.invitation_code }}</span>
+                                <button class="btn btn-sm btn-link"
+                                    onclick="navigator.clipboard.writeText('{{ org.invitation_code }}')"
+                                    title="Copy Code" style="color: var(--color-primary-light);">
+                                    <i class="bi bi-copy"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div
+                            style="background: rgba(255, 255, 255, 0.05); border-radius: 12px; padding: 16px; border: 1px solid var(--color-border);">
+                            <label
+                                style="font-size: 12px; text-transform: uppercase; letter-spacing: 0.5px; opacity: 0.7; margin-bottom: 4px; display: block;">Organization
+                                ID</label>
+                            <span style="font-family: monospace; font-size: 0.9rem; opacity: 0.9;">{{ org.id }}</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stats Card -->
+    <div class="col-md-4 mb-4">
+        <div class="card h-100">
+            <div class="card-body">
+                <h5 class="card-title">Quick Stats</h5>
+
+                <div class="d-flex align-items-center mb-4 mt-4">
+                    <div
+                        style="width: 48px; height: 48px; background: rgba(59, 130, 246, 0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 16px;">
+                        <i class="bi bi-people-fill" style="color: #3b82f6; font-size: 20px;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.5rem;">{{ member_count }}</h3>
+                        <span class="text-secondary">Members</span>
+                    </div>
+                </div>
+
+                <div class="d-flex align-items-center">
+                    <div
+                        style="width: 48px; height: 48px; background: rgba(16, 185, 129, 0.1); border-radius: 10px; display: flex; align-items: center; justify-content: center; margin-right: 16px;">
+                        <i class="bi bi-journal-bookmark-fill" style="color: #10b981; font-size: 20px;"></i>
+                    </div>
+                    <div>
+                        <h3 style="margin: 0; font-size: 1.5rem;">{{ course_count }}</h3>
+                        <span class="text-secondary">Active Courses</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+{% endblock %}

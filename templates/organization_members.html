@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}AmbaLearn Dashboard - Organization Members{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Members</h1>
+    <p>View all members of your organization including students and staff</p>
+</div>
+
+<div class="card">
+    <div class="card-body">
+        <h5 class="card-title"><i class="bi bi-people-fill"></i> {{ org.name }} Members</h5>
+        <table class="table">
+            <thead>
+                <tr>
+                    <th scope="col">Member</th>
+                    <th scope="col">Role</th>
+                    <th scope="col">Email</th>
+                    <th scope="col">Joined Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for member in members %}
+                <tr>
+                    <td>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <div
+                                style="width: 36px; height: 36px; background: var(--gradient-primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px;">
+                                {{ member.username[0].upper() }}
+                            </div>
+                            <span>{{ member.username }}</span>
+                        </div>
+                    </td>
+                    <td>
+                        {% if member.role == 'manager' %}
+                        <span class="badge bg-warning text-dark">Manager</span>
+                        {% elif member.role == 'admin' %}
+                        <span class="badge bg-danger">Admin</span>
+                        {% else %}
+                        <span class="badge bg-success">User</span>
+                        {% endif %}
+                    </td>
+                    <td class="text-secondary">{{ member.email }}</td>
+                    <td>{{ member.registered_at.strftime('%Y-%m-%d') }}</td>
+                </tr>
+                {% endfor %}
+                {% if not members %}
+                <tr>
+                    <td colspan="4" class="text-center" style="padding: 24px;">No members found.</td>
+                </tr>
+                {% endif %}
+            </tbody>
+        </table>
+    </div>
+</div>
+{% endblock %}

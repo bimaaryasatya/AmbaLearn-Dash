@@ -24,7 +24,10 @@
         </div>
 
         <div class="sidebar-sticky">
-            <div class="section-title">Main Menu</div>
+
+            <!-- Management Section: Admin Only -->
+            {% if current_user.role == 'admin' %}
+            <div class="section-title">Management</div>
             <ul class="nav flex-column">
                 <li class="nav-item">
                     <a class="nav-link {% if request.endpoint == 'overview' %}active{% endif %}" href="/">
@@ -43,20 +46,7 @@
                     </a>
                 </li>
                 <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint in ['courses', 'edit_course'] %}active{% endif %}"
-                        href="/courses">
-                        <div class="icon-wrapper">
-                            <i class="bi bi-journal-bookmark-fill"></i>
-                        </div>
-                        <span>Courses</span>
-                    </a>
-                </li>
-            </ul>
-
-            <div class="section-title">Management</div>
-            <ul class="nav flex-column">
-                <li class="nav-item">
-                    <a class="nav-link {% if request.endpoint in ['organizations', 'edit_organization'] %}active{% endif %}"
+                    <a class="nav-link {% if request.endpoint in ['organization','organizations', 'edit_organization'] %}active{% endif %}"
                         href="/organizations">
                         <div class="icon-wrapper">
                             <i class="bi bi-building"></i>
@@ -82,6 +72,41 @@
                     </a>
                 </li>
             </ul>
+            {% endif %}
+
+            <!-- Organization Section: Organization Members & Managers -->
+            {% if current_user.organization_id or current_user.role == 'manager' %}
+            <div class="section-title">Organization</div>
+            <ul class="nav flex-column">
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'my_organization' %}active{% endif %}"
+                        href="/my_organization">
+                        <div class="icon-wrapper">
+                            <i class="bi bi-building-check"></i>
+                        </div>
+                        <span>Your Organization</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint in ['courses', 'edit_course'] %}active{% endif %}"
+                        href="/courses">
+                        <div class="icon-wrapper">
+                            <i class="bi bi-journal-bookmark-fill"></i>
+                        </div>
+                        <span>Courses</span>
+                    </a>
+                </li>
+                <li class="nav-item">
+                    <a class="nav-link {% if request.endpoint == 'organization_members' %}active{% endif %}"
+                        href="/my_organization/members">
+                        <div class="icon-wrapper">
+                            <i class="bi bi-people"></i>
+                        </div>
+                        <span>Members</span>
+                    </a>
+                </li>
+            </ul>
+            {% endif %}
         </div>
         <div class="sidebar-footer" style="padding: 20px;">
             <a href="/logout" class="nav-link"

@@ -19,6 +19,27 @@
                     <input type="text" class="form-control" name="username" placeholder="Enter username" required>
                 </div>
                 <div class="col-md-6 mb-3">
+                    <label class="form-label">Email</label>
+                    <input type="email" class="form-control" name="email" placeholder="Enter email" required>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Password</label>
+                    <input type="password" class="form-control" name="password"
+                        placeholder="Enter password (required for new user)" required>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <label class="form-label">Role</label>
+                    <select class="form-select" name="role">
+                        <option value="user" selected>User</option>
+                        <option value="manager">Manager</option>
+                        <option value="admin">Admin</option>
+                    </select>
+                </div>
+            </div>
+            <div class="row">
+                <div class="col-md-6 mb-3">
                     <label class="form-label">Organization</label>
                     <select class="form-select" name="organization_id">
                         <option value="">No Organization</option>
@@ -44,6 +65,8 @@
                 <tr>
                     <th scope="col">#</th>
                     <th scope="col">Username</th>
+                    <th scope="col">Contact</th>
+                    <th scope="col">Role</th>
                     <th scope="col">Organization</th>
                     <th scope="col">Created At</th>
                     <th scope="col">Actions</th>
@@ -59,8 +82,17 @@
                                 style="width: 36px; height: 36px; background: var(--gradient-primary); border-radius: 8px; display: flex; align-items: center; justify-content: center; color: white; font-weight: 600; font-size: 14px;">
                                 {{ user.username[0].upper() }}
                             </div>
-                            <span>{{ user.username }}</span>
                         </div>
+                    </td>
+                    <td><span class="text-secondary small">{{ user.email }}</span></td>
+                    <td>
+                        {% if user.role == 'admin' %}
+                        <span class="badge bg-danger">Admin</span>
+                        {% elif user.role == 'manager' %}
+                        <span class="badge bg-warning text-dark">Manager</span>
+                        {% else %}
+                        <span class="badge bg-success">User</span>
+                        {% endif %}
                     </td>
                     <td>
                         {% if user.organization %}

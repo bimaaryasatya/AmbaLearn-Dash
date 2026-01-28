@@ -16,7 +16,7 @@ API_BASE_URL = "http://localhost:8080"
 
 # --- Database Configuration ---
 # Connect to the SAME database as AmbaLearn-Engine
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root:@localhost/ambalearn'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql+pymysql://root@localhost/ambalearn'
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 # --- Extensions ---
@@ -57,10 +57,12 @@ def login():
                 
                 user = User.query.filter_by(email=email).first()
                 if user:
-                     if user.role != 'admin':
-                        flash('Access denied. Admin privileges required.', 'error')
+                     if user.role not in ['admin', 'manager']:
+                        flash('Access denied. Admin or Manager privileges required.', 'error')
                      else:
                         login_user(user)
+                        if user.role == 'manager':
+                            return redirect(url_for('my_organization'))
                         return redirect(url_for('overview'))
                 else:
                     flash('Login successful on engine but user not found locally.', 'error')
@@ -85,7 +87,7 @@ def logout():
 @login_required
 def overview():
     if current_user.role != 'admin':
-        return "Access Forbidden: Admins Only", 403
+        return redirect(url_for('my_organization'))
 
     # --- Analytics for Cards ---
     total_organizations = Organization.query.count()
@@ -121,7 +123,7 @@ def overview():
 
     return render_template('index.html', 
                            total_organizations=total_organizations,
-                           total_courses="N/A", # JSON based
+                           total_courses=total_courses, # From CourseMetadata DB
                            total_prompts_count=total_prompts_count,
                            total_users_count=total_users_count,
                            chart_labels=chart_labels,
@@ -130,18 +132,54 @@ def overview():
                            active_user_counts=active_user_counts,
                            user=current_user)
 
+
 @app.route('/models')
 @login_required
 def models():
+    if current_user.role != 'admin':
+        flash('Access restricted to admins.', 'error')
+        return redirect(url_for('my_organization'))
     return render_template('models.html', user=current_user)
 
 # --- Course Routes (Disabled/Dummy for now as they are JSON based in Engine) ---
 @app.route('/courses')
 @login_required
 def courses():
+    # If manager, show only their org's courses (mock logic for now as courses are json based)
+    # In a real scenario we would filter courses by org_id
+    if current_user.role == 'manager' and not current_user.organization_id:
+         flash('You are not assigned to an organization.', 'warning')
+    
     # To properly implement this, we'd need to scan the JSON files from the Engine's directory
     # For now, we render empty or placeholder
     return render_template('courses.html', courses=[], user=current_user)
+
+@app.route('/my_organization')
+@login_required
+def my_organization():
+    if not current_user.organization_id:
+        # If admin tries to access but has no org, or logic error
+        if current_user.role == 'admin':
+             flash("You are an admin without an organization. Navigate to 'Organizations' to manage them.", "info")
+             return redirect(url_for('overview'))
+        return render_template('my_organization.html', org=None, user=current_user)
+    
+    org = Organization.query.get(current_user.organization_id)
+    # Calcluate stats
+    member_count = len(org.users)
+    course_count = 0 # Placeholder until course link is established
+    
+    return render_template('my_organization.html', org=org, member_count=member_count, course_count=course_count, user=current_user)
+
+@app.route('/my_organization/members')
+@login_required
+def organization_members():
+    if not current_user.organization_id:
+        return redirect(url_for('my_organization'))
+    
+    org = Organization.query.get(current_user.organization_id)
+    return render_template('organization_members.html', org=org, members=org.users, user=current_user)
+
 
 @app.route('/edit_course/<int:course_id>', methods=['GET', 'POST'])
 @login_required
@@ -154,7 +192,8 @@ def edit_course(course_id):
 @login_required
 def organizations():
     all_orgs = Organization.query.all()
-    return render_template('organizations.html', organizations=all_orgs, user=current_user)
+    all_users = User.query.all()
+    return render_template('organizations.html', organizations=all_orgs, users=all_users, user=current_user)
 
 @app.route('/add_organization', methods=['POST'])
 @login_required
@@ -162,32 +201,81 @@ def add_organization():
     org_name = request.form['organization_name']
     description = request.form.get('description', '')
     if org_name:
-        # Assuming current admin is the manager for now, or we need a UI to pick manager
-        new_org = Organization(name=org_name, description=description, manager_id=current_user.id, invitation_code="TEMP12") 
-        # Note: In real app, we need the `generate_invitation_code` logic from Engine
-        import string, secrets
-        def generate_invitation_code(length=6):
-            alphabet = string.ascii_letters + string.digits
-            while True:
-                code = ''.join(secrets.choice(alphabet) for _ in range(length))
-                if not Organization.query.filter_by(invitation_code=code).first():
-                    return code
         new_org.invitation_code = generate_invitation_code()
         
+        manager_id = request.form.get('manager_id')
+        if manager_id:
+            new_org.manager_id = manager_id
+            # Auto-join manager and update role
+            manager_user = User.query.get(manager_id)
+            if manager_user:
+                manager_user.organization = new_org
+                if manager_user.role != 'admin':
+                    manager_user.role = 'manager'
+        # If no manager selected, default to current user if they are creating it? 
+        # Requirement says "can be blank to set the manager later". 
+        # "Assuming current admin is the manager for now" was old logic.
+        # If blank, manager_id remains None (as defined in Model default or we set it explicitly)
+        elif not new_org.manager_id: 
+            # If we didn't set it above, ensure it's None. 
+            # The model default for migration might be an issue if we don't set it.
+            new_org.manager_id = None
+
         db.session.add(new_org)
+        # We need to add/commit new_org first to get an ID? 
+        # Actually SQLAlchemy handles object references. 
+        # Setting manager_user.organization = new_org works before commit.
+        
         db.session.commit()
     return redirect(url_for('organizations'))
+
+def generate_invitation_code(length=6):
+    """Generates a unique random string of a given length."""
+    alphabet = string.ascii_letters + string.digits
+    while True:
+        code = ''.join(secrets.choice(alphabet) for _ in range(length))
+        if not Organization.query.filter_by(invitation_code=code).first():
+            return code
+
+@app.route('/organization/<string:org_id>')
+@login_required
+def view_organization(org_id):
+    org = Organization.query.get_or_404(org_id)
+    return render_template('view_organization.html', org=org, user=current_user)
 
 @app.route('/edit_organization/<string:org_id>', methods=['GET', 'POST'])
 @login_required
 def edit_organization(org_id):
     org = Organization.query.get_or_404(org_id)
+    all_users = User.query.all()
     if request.method == 'POST':
         org.name = request.form['organization_name']
         org.description = request.form.get('description')
+        
+        manager_id = request.form.get('manager_id')
+        
+        # Check if manager changed
+        if manager_id != org.manager_id:
+             # Handle Old Manager
+             if org.manager_id:
+                 old_manager = User.query.get(org.manager_id)
+                 if old_manager and old_manager.role != 'admin':
+                     old_manager.role = 'user'
+            
+             # Handle New Manager
+             if manager_id:
+                 org.manager_id = manager_id
+                 new_manager = User.query.get(manager_id)
+                 if new_manager:
+                     new_manager.organization = org # Auto-join
+                     if new_manager.role != 'admin':
+                         new_manager.role = 'manager'
+             else:
+                 org.manager_id = None
+        
         db.session.commit()
         return redirect(url_for('organizations'))
-    return render_template('edit_organization.html', org=org, user=current_user)
+    return render_template('edit_organization.html', org=org, users=all_users, user=current_user)
 
 @app.route('/delete_organization/<string:org_id>')
 @login_required
@@ -221,10 +309,12 @@ def add_user():
     
     if username and email and password:
         hashed_pw = bcrypt.generate_password_hash(password).decode('utf-8')
+        role = request.form.get('role', 'user')
         new_user = User(
             username=username, 
             email=email, 
             password_hash=hashed_pw,
+            role=role,
             organization_id=org_id if org_id else None
         )
         db.session.add(new_user)
@@ -246,6 +336,10 @@ def edit_user(user_id):
 
         org_id = request.form.get('organization_id')
         user_to_edit.organization_id = org_id if org_id else None
+        
+        role = request.form.get('role')
+        if role:
+            user_to_edit.role = role
         
         db.session.commit()
         return redirect(url_for('users'))
@@ -298,5 +392,5 @@ def analyze_feedback():
 
 if __name__ == '__main__':
     # No more drop_all() !
-    app.run(debug=True, port=8081) # Run on different port than Engine
+    app.run(debug=True, port=8081, host='0.0.0.0')
 
