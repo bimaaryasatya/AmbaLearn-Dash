@@ -1,4 +1,4 @@
-from flask import Flask, render_template, jsonify, request, redirect, url_for, flash
+from flask import Flask, render_template, jsonify, request, redirect, url_for, flash, session
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from flask_bcrypt import Bcrypt
@@ -54,6 +54,9 @@ def login():
                 # Engine login successful
                 # Since we share the DB, we can just fetch the user here
                 # And since we share the SECRET_KEY, our session cookie *might* be compatible if domains match.
+                
+                # Capture authentication cookies for future requests to Engine
+                session['engine_cookies'] = engine_resp.cookies.get_dict()
                 
                 user = User.query.filter_by(email=email).first()
                 if user:
@@ -142,6 +145,55 @@ def models():
     return render_template('models.html', user=current_user)
 
 # --- Course Routes (Disabled/Dummy for now as they are JSON based in Engine) ---
+@app.route('/generate_course_action', methods=['POST'])
+@login_required
+def generate_course_action():
+    topic = request.form.get('topic')
+    if not topic:
+        flash('Topic is required.', 'error')
+        return redirect(url_for('courses'))
+
+    # Determine organization_id
+    org_id = current_user.organization_id
+    if not org_id and current_user.role == 'manager':
+         flash('You are not assigned to an organization.', 'error')
+         return redirect(url_for('courses'))
+    
+    # If admin (without org) is trying to generate, we might need a context. 
+    # For now, let's assume this action is primarily for managers or users within an org.
+    if not org_id:
+         flash('Organization context required to generate course.', 'error')
+         return redirect(url_for('courses'))
+
+    # Retrieve stored cookies
+    cookies = session.get('engine_cookies')
+    if not cookies:
+        flash('Session expired or engine connection lost. Please login again.', 'error')
+        return redirect(url_for('login'))
+
+    try:
+        url = f"{API_BASE_URL}/organization/{org_id}/generate_course"
+        resp = requests.post(
+            url,
+            json={"topic": topic},
+            cookies=cookies  # Pass the authentication cookies
+        )
+        
+        if resp.status_code in [200, 201]:
+            flash(f"Course generation started for topic: {topic}", 'success')
+        else:
+             # Try to get error message from JSON
+            try:
+                err_msg = resp.json().get('error', 'Unknown Error')
+            except:
+                err_msg = resp.text
+            flash(f"Failed to generate course: {err_msg}", 'error')
+
+    except requests.RequestException as e:
+        flash(f"Connection to Engine failed: {e}", 'error')
+
+    return redirect(url_for('courses'))
+
 @app.route('/courses')
 @login_required
 def courses():
